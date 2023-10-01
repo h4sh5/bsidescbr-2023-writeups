@@ -19,7 +19,7 @@ We are going to work with the firmware file that the [bPodUpdater.py](https://bp
 
 The ports on the back of the board are labeled below for your convenience:
 
-<img src=circuit_labels.png>
+<img src=circuit_labels.png height=700>
 
 There are a number of hardware interface challenges that require hooking up the GPIO utility pins on the side of the board (e.g. for I2C, SPI and serial protocols). Only the utility pins needed to be connected to for the CTF challenge (and obviously the USB-C port for power and access via a computer serial terminal); the rest of the ports (e.g. JTAG, serial programming, etc) do not need to be touched.
 
@@ -27,7 +27,9 @@ The bpod comes with pre-existing tools to sniff all protocols required to comple
 
 In case you overwrite the ESP32's bootloader for some reason, or interrupt the flashing process, or somehow brick the entire thing, you can get an ISP programmer of some sort (like from [Jaycar](https://www.jaycar.com.au/duinotech-isp-programmer-for-arduino-and-avr/p/XC4627)) to still be able to program the chip over the ISP programming port.
 
-Soldering on a header provided at the Hardware Village using one of their provided soldering stations make it a lot easier to hook up the bpod to other things (like another bpod!)
+Soldering on a header strip provided at the Hardware Village using one of their provided soldering stations make it a lot easier to hook up the bpod to other things (like another bpod!)
+
+Similar pin header strips can be bought easily. For example, this [40 pin header strip at Jaycar](https://www.jaycar.com.au/40-pin-header-terminal-strip/p/HM3212. You can just manually cut/snap it down to the number of pins you want (in this case, 12).
 
 Here's my relatively nice and clean soldering job. It took less than 10 minutes for me to finish.
 
@@ -56,7 +58,7 @@ This means things like serial terminal (UART), I2C and SPI messages sniffed from
 
 
 
-### Cheesy Strings I
+## Cheesy Strings I
 
 Challenge description:
 
@@ -73,7 +75,7 @@ $ strings bpod.bin | rg cybears
 cybears{h0w_l0ng_1s_a_p1ec3_0f_str1ng_ch33s3}
 ```
 
-### Serial Hacker
+## Serial Hacker
 
 Challenge description:
 
@@ -81,13 +83,13 @@ Challenge description:
 Are you a serial hacker?
 ```
 
-You just need to hook up two bpods with pins SERIAL_TX1, SERIAL_RX1 and GND, as described on the bpod's Tools -> uartterm app. Then you can use the uartterm app to sniff out the flag.
+You just need to hook up two bpods with pins SERIAL_TX1 (transmit), SERIAL_RX1 (receive) and GND (ground), as described on the bpod's Tools -> uartterm app. Then you can use the uartterm app to sniff out the flag.
 
 > UART (Universal Asynchronous Receiver-Transmitter) is a computer hardware device and protocol for asynchronous serial communication for a bus with a clock. This means that baud rates are configurable (faster means more chance for errors), as well as things like parity bits. For a fun, long read (not right now!) on serial consoles, see http://www.catb.org/~esr/faqs/things-every-hacker-once-knew/
 
 The TX pin of a bpod should go to the RX pin of the other, and vice versa, The GND pin should go to another GND.
 
-Then, change the baud rate to 9600 and you'll see the flag repeat itself in your uartterm:
+Then, change the baud rate to 9600 and you'll see the flag repeat itself in your uartterm. If you don't, reboot the bpod so it starts sending messages again.
 
 ```
 ==== Reading ====
@@ -99,20 +101,114 @@ flag:
 `cybears{u_r_a_s3r1al_h4ck3r}`
 
 
-### I can see you
+## I can see you
 
- Challenge description:
+Challenge description:
 
 ```
 I too see you.
 ```
 
-So.. "I too see you" sounds like "I 2 c you" which is a hint that this is the I2C challenge.
+So.. "I too see you" sounds like "I 2 c you" which is a hint that this is the [I2C](https://en.wikipedia.org/wiki/I%C2%B2C) (I squared C, or IIC) challenge.
+
+I2C, or Inter-Integrated Circuit, is a synchronous, multi-master/multi-slave (controller/target), packet switched, single-ended, serial communication bus.
+
+This is the most straight forward hardware interface challenge; there are no configurations to set, no complex pin wiring. Just SDA to SDA (Serial Data Line) and SCK to SCK (Serial Clock Line) on both sides, as well and GND (ground).
+
+<img src=i2c_pins.png height=500>
+
+After hooking them up, just open the i2csniff app on one bpod, and reboot the other bpod. It will start spitting out ASCII-looking values:
+
+<img src=i2c_flag.png height=500>
+
+`S66W+63+79+62+65+61+72+73+7B+69+5F+32+5F+63+5F+79+30+75+7D+s`
+
+Decoding it <a target=_blank href="https://cyberchef.org/#recipe=From_Hex('Auto')&input=UzY2Vys2Mys3OSs2Mis2NSs2MSs3Mis3Mys3Qis2OSs1RiszMis1Ris2Mys1Ris3OSszMCs3NSs3RCtz">from hex using CyberChef</a>
+
+(we can ignore the first S66W start header byte)
+
+`cybears{i_2_c_y0u}`
 
 
+## I spy with my little eye
+
+Challenge description:
+
+```
+I spy with my little eye.
+```
+
+Sounds like SPI to me! This is probably the most painful hardware challenge to hook up. As described by the notes in most bpod tools, it's a "best effort" to decode SPI packets, so there might be a lot of noise. It takes 5 wires.
+
+According to wikipedia, these are the pins:
+
+```
+    SCLK : Serial Clock (clock signal from main)
+
+    MOSI : Main Out Sub In (data output from main)
+
+    MISO : Main In Sub Out (data output from sub)
+    __   ___________
+    CS : Chip Select (active low signal from main to address subs and initiate transmission)
+```
+
+The diagram on the bpod app (when accessed via the USB console) is like this:
+
+```
+    ==== Diagram ====
+      bPod              other
+    o [GND]--------------[GND]
+    o [IO5]---------------[SO]
+    o [IO6]---------------[SI]
+    o [IO7]---------------[CS]
+    o
+    o [SCK]--------------[SCK]
+    o
+    o
+    o
+```
+
+And it tells you to NOT use the SPI port from one to the other, but rather use the IO5-7 pins, otherwise it could stop the display from working. Sometimes even when you don't touch the pins, one or both of your bpod's screens will stop working anyway. It's okay, just use the USB-C cable and `screen` (or any other serial terminal, like the one in Arduino IDE) to control the bpod.
+
+So, hooking up the clock, SO (MISO) and SI (MOSI) isn't that hard. After a couple tries, we realized that the i2c clock pin also works for the clock; the SPI clock pin can sometimes be a bit unreliable. Strange.
+
+The tricky bit is the CS. As wikipedia mentioned, Chip Select is an active low signal, which means that when you give it a high voltage (1), it interprets it as a 0, to address subs and initiate transmission. So for this purpose we want an always high signal pin, such as 3V.
+
+So an actual working wiring configuration is, strangely enough:
+
+```
+      bPod                other bPod
+    o [GND]---------------[GND]
+    o [IO5]---------------[MISO]
+    o [IO6]---------------[MOSI]
+    o [IO7]---------------[3V]
+    o
+    o [I2C_SCK]-----------[SPI_SCK]
+```
+
+(Maybe the I2C_SCK is being used for the sniffer's input? It does say in spisniff notes to NOT use the marked SPI pins on the bpod, so maybe that's why a different SCK has to be used)
+
+<img src=spi_wires.png height=500>
+
+After it's hooked up, you can reboot the target bpod, and keep sniffing with the spisniff app through the noise. Eventually it spits out something semi-ASCII-hex-looking:
+
+```
+63:63+79:79+
+61:61+72:72+73:73+7B:7B+69:69+5F:5F+73:73+70:70+31:31+7D:7D+63:63+79:79+62:62+65:65+61:61+72:72+73:73+7B:7B+69:69+5F:5F+70:70+31:31+7D:7D+
+```
+
+Which is hex encoded:
+
+```
+ccyyaarrss{{ii__sspp11}}ccyybbeeaarrss{{ii__pp11}}
+```
+
+Cleaning it up:
+
+`cybears{i_sp1}`
 
 
-### A Place Called Vertigo
+## A Place Called Vertigo
 
 Challenge description:
 
@@ -136,7 +232,7 @@ If we look up "wav watermark", we find this repo https://github.com/swesterfeld/
 
 which looks like they have a key very similar to the one in the challenge description (same length in hex)
 
-So let's look at what a WAV header looks like:
+So let's look at what a WAV file header looks like:
 
 https://stackoverflow.com/questions/28137559/can-someone-explain-wavwave-file-headers/28137825#28137825
 
@@ -206,6 +302,3 @@ Yay! We got the flag `cybears{mu$!c}`
 The CTF scoreboard theme is also pretty cool
 
 <img src=place_called_vertigo_solved.png>
-
-
-
