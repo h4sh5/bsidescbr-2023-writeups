@@ -10,7 +10,7 @@ There is a firmware updater script available online (link found in the QR code i
 
 .. ,then decodes and decompresses the embedded base64 firmware data and flashes it over serial (usb-C connector) to the device. It also dumps the firmware files used to flash it into the current directory.
 
-We are going to work with the firmware file that the [bPodUpdater.py](https://bpod.bsidescbr.com.au/static/bPodUpdater.py) script taking from the [bpod website](https://bpod.bsidescbr.com.au/update.html) dumped onto the disk when it runs (`bpod.bin`). It also drops `partition-table.bin` and `bootloader.bin` but they've been largely useless for the CTF.
+We are going to work with the firmware file that the [bPodUpdater.py](https://bpod.bsidescbr.com.au/static/bPodUpdater.py) script taken from the [bpod website](https://bpod.bsidescbr.com.au/update.html) dumped onto the disk when it runs (`bpod.bin`). It also drops `partition-table.bin` and `bootloader.bin` but they've been largely useless for the CTF.
 
 > Note that the script may have been updated since the time of writing, and we may have different chipsets; therefore your binary offsets may not be the same as mine. A different static snapshot of the updater script is taken [here on waybackmachine](https://web.archive.org/web/20231001122022/https://bpod.bsidescbr.com.au/static/bPodUpdater.py)
 
@@ -38,7 +38,7 @@ Here's my relatively nice and clean soldering job. It took less than 10 minutes 
 
 ## USB serial console on a computer terminal
 
-You can use your computer's terminal to interact with the serial terminal by using `screen /dev/<port> 115200` (like `screen /dev/ttyACM0 115200` on Linux).
+You can use your computer's terminal to interact with the serial terminal by using `screen /dev/<port> 115200` (like `screen /dev/ttyACM0 115200` on Linux). That will set the baud rate to 115200, but anything else should also do (like 9600)
 
 The crazy cool thing is that the serial terminal on your screen will mirror exactly what you're seeing on the bpod's display (not to the pixel, but semantically).
 
@@ -47,12 +47,13 @@ This means things like serial terminal (UART), I2C and SPI messages sniffed from
 ## Challenges
 
 - [Cheesey Strings I](#cheesy-strings-i)
-- [Blinky Bill](#blinky-bill
-)
-- [A Place Called Vertigo](#a-place-called-vertigo)
+- [Serial Hacker](#serial-hacker)
 - [I can see you](#i-can-see-you)
 - [I spy with my little eye](#i-spy-with-my-little-eye)
-- [Serial Hacker](#serial-hacker)
+- [A Place Called Vertigo](#a-place-called-vertigo)
+- [Blinky Bill](#blinky-bill)
+- [Cheesy Strings II](#cheesy-strings-ii)
+
 
 
 ### Cheesy Strings I
