@@ -222,9 +222,11 @@ Hope no one finds that file!
 Flag format is .cybears{XXXXX}.
 ```
 
-There is a music file in the firmware somewhere, with the U2 song:
+<img src=music.png height=400>
 
-`rg -a WAVE bpod.bin`  (using ripgrep)
+There is a music file in the firmware somewhere, with the U2 song. Let's grep for common music file headers, such as WAV (I am using `ripgrep`, which is a faster grep):
+
+`rg -a WAV bpod.bin`
 
 shows that there's some data with `RIFFd....WAVEfmt "Vfdata@` 
 
@@ -302,3 +304,9 @@ Yay! We got the flag `cybears{mu$!c}`
 The CTF scoreboard theme is also pretty cool
 
 <img src=place_called_vertigo_solved.png>
+
+## Blinky Bill
+
+The lights blink through the LEDs like a stream of binary from right to left, *apparently*. It's a giant pain in the ass, so you likely want to record it with your phone to step through it.
+
+
