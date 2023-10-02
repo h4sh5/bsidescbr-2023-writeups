@@ -56,6 +56,7 @@ This means things like serial terminal (UART), I2C and SPI messages sniffed from
 - [Blinky Bill](#blinky-bill)
 - [Cheesy Strings II](#cheesy-strings-ii)
 
+You can also find most of the author's quick walkthroughs of these challenges (with quite little detail) here https://gitlab.com/pjranki/bpod/-/tree/main/firmware/ctf/chals/badge?ref_type=heads
 
 
 ## Cheesy Strings I
@@ -307,6 +308,112 @@ The CTF scoreboard theme is also pretty cool
 
 ## Blinky Bill
 
+**(Unsolved)**
+
+Challenge description:
+
+```
+Head towards the light, I dare you.
+```
+
+
 The lights blink through the LEDs like a stream of binary from right to left, *apparently*. It's a giant pain in the ass, so you likely want to record it with your phone to step through it.
 
+I'm not doing that.
+
+## Cheesy strings II
+
+**(Unsolved)**
+
+Challenge description:
+
+```
+Dig deep to find the vault of cheesy goodness.
+```
+
+Running binwalk, we find some AES stuff:
+
+```
+ binwalk --dd='.*' bpod.bin
+
+DECIMAL       HEXADECIMAL     DESCRIPTION
+--------------------------------------------------------------------------------
+764528        0xBAA70         AES S-Box
+764784        0xBAB70         AES Inverse S-Box
+```
+
+The AES S-Box starts with:
+
+```
+xxd _bpod.bin.extracted/BAA70 |head
+00000000: 637c 777b f26b 6fc5 3001 672b fed7 ab76  c|w{.ko.0.g+...v
+00000010: ca82 c97d fa59 47f0 add4 a2af 9ca4 72c0  ...}.YG.......r.
+00000020: b7fd 9326 363f f7cc 34a5 e5f1 71d8 3115  ...&6?..4...q.1.
+00000030: 04c7 23c3 1896 059a 0712 80e2 eb27 b275  ..#..........'.u
+00000040: 0983 2c1a 1b6e 5aa0 523b d6b3 29e3 2f84  ..,..nZ.R;..)./.
+00000050: 53d1 00ed 20fc b15b 6acb be39 4a4c 58cf  S... ..[j..9JLX.
+```
+
+
+It's time to reverse engineer the firmware, painfully... Looking up "reverse engineering esp32 firmware", we find these resources:
+
+- https://olof-astrand.medium.com/reverse-engineering-of-esp32-flash-dumps-with-ghidra-or-ida-pro-8c7c58871e68
+- https://blog.rop.la/en/reversing/2022/05/02/an-easy-way-to-reconstruct-an-esp32-app-image-to-elf.html
+- https://github.com/tenable/esp32_image_parser
+
+We can use https://github.com/tenable/esp32_image_parser to convert bpod.bin into an ELF file, and load it into [Ghidra](https://github.com/NationalSecurityAgency/ghidra/releases) with https://github.com/yath/ghidra-xtensa (a Ghidra plugin you need to install)
+
+Saving this script as `image2elf.py` in the same directory as the git cloned `esp32_image_parser`:
+
+```py
+#!/usr/bin/env python3
+import sys
+from esp32_image_parser import *
+
+print ("{} {}".format(sys.argv[1], sys.argv[2]))
+
+input_file = sys.argv[1]
+output_file = sys.argv[2]
+
+image2elf(input_file, output_file, True)
+print('written to', output_file)
+```
+
+Then running it with
+
+```
+python3 image2elf.py bpod.bin bpod.bin.elf
+```
+
+After loading it into Ghidra and the analysis is complete, we can search memory for the start of the AES S-Box we found (starting with the string `c|w{`)
+
+You can hit `S` to search a pattern in memory. (Or go to Search -> Memory on the top bar)
+
+We can hit `L` after highlighting the S-box address in the Listing window to give it a label, like `aes_sbox`
+
+And we do the same with the bytes of the Inverse S-box and mark it as well.
+
+Now we use one of the most powerful functionalities of RE tools like Ghidra and IDA - reference finding. If we find a reference that uses `aes_sbox`, it's most likely going to be related to AES functions.
+
+To do so we highlight the `aes_sbox` label in the Listing menu and hit Cmd-Shift-F (mac) or Ctrl-Shift-F (win/linux), depending on your OS.
+
+We find a function with DATA reference to it, and they point to a function at 400aeb64 (your offset might be different; refer to the [bpod.bin](bpod.bin) uploaded to this repo for hopefully the same offsets as me. It's still going to be the same function anyway).
+
+<img src=sbox_refs.png>
+
+The function there just returns the value at an index of the sbox, so I renamed it (via the `L` keyboard shortcut once again) to `get_sbox_index`
+
+<img src=sbox_find_refs.png>
+
+Doing a reference find again, we find a lot more references to the `get_sbox_index`. This is a great sign - meaning that the function is used by many others, showing us that we are on the right track to find the encryption-related functions.
+
+<img src=get_sbox_refs.png>
+
+I should note here that [AES](https://en.wikipedia.org/wiki/Advanced_Encryption_Standard) is a symmetric key encryption algorithm. That means there is one key, and one IV (Initialization Vector) to encrypt and decrypt data. Since this is a firmware image of an embedded device, and there is no sign of public/private encryption (like RSA), we can assume that it has to get the key from somewhere to decrypt the encrypted data; which means that **the key is most likely stored in the same firmware**.
+
+I basically rename/label found functions by the order that I found them, with the prefix being what I think they relate to or what they do. For example, anything functions I find by reference to AES I just name `aes1`, `aes2`, `aes3` .. Feel free to rename them whatever makes sense based on what you think they do.
+
+So if we can follow down this rabbit hole by doing the find refs and then set label "loop", we should be able to find data (`DAT_*`) references in Ghidra for the encryption key as well as the encrypted data.
+
+This is as far as I've gotten; I have not yet solved this challenge, but may update this writeup when I do.
 
