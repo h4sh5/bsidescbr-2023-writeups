@@ -426,6 +426,8 @@ $ nm bpod.bin.elf |head ; echo ...  ; nm bpod.bin.elf | tail
 
 We can search memory for the start of the AES S-Box we found (starting with the string `c|w{`)
 
+<img src=ghidra_search.png>
+
 You can hit `S` to search a pattern in memory. (Or go to Search -> Memory on the top bar)
 
 We can hit `L` after highlighting the S-box address in the Listing window to give it a label, like `aes_sbox`
