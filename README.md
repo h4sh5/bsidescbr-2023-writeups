@@ -359,9 +359,11 @@ It's time to reverse engineer the firmware, painfully... Looking up "reverse eng
 
 - https://olof-astrand.medium.com/reverse-engineering-of-esp32-flash-dumps-with-ghidra-or-ida-pro-8c7c58871e68
 - https://blog.rop.la/en/reversing/2022/05/02/an-easy-way-to-reconstruct-an-esp32-app-image-to-elf.html
+- https://olof-astrand.medium.com/analyzing-an-esp32-flash-dump-with-ghidra-e70e7f89a57f
 - https://github.com/tenable/esp32_image_parser
+- https://github.com/Ebiroll/ghidra-xtensa
 
-We can use https://github.com/tenable/esp32_image_parser to convert bpod.bin into an ELF file, and load it into [Ghidra](https://github.com/NationalSecurityAgency/ghidra/releases) with https://github.com/yath/ghidra-xtensa (a Ghidra plugin you need to install)
+We can use https://github.com/tenable/esp32_image_parser to convert bpod.bin into an ELF file, and load it into [Ghidra](https://github.com/NationalSecurityAgency/ghidra/releases) with https://github.com/Ebiroll/ghidra-xtensa (a Ghidra plugin you need to install)
 
 Saving this script as `image2elf.py` in the same directory as the git cloned `esp32_image_parser`:
 
@@ -385,7 +387,44 @@ Then running it with
 python3 image2elf.py bpod.bin bpod.bin.elf
 ```
 
-After loading it into Ghidra and the analysis is complete, we can search memory for the start of the AES S-Box we found (starting with the string `c|w{`)
+It worked:
+
+```
+bpod.bin.elf: ELF 32-bit LSB executable, Tensilica Xtensa, version 1 (SYSV), statically linked, not stripped
+```
+
+
+Load the elf file into Ghidra and let the auto analysis run.
+
+I noticed that something is wrong with the disassembly, or firmware file, or the plugin.. basically none of the exports e.g. (`strnlen`) are used or have any references in the code. I don't believe that is true, but I could not manually correlate the functions that look like they belong in the imports (e.g. `func_0x4002eee8(param_1);` in `FUN_40081a40`) via addresses either. More work to be done here. You can see all the symbols and their addresses by running `nm`
+
+```
+$ nm bpod.bin.elf |head ; echo ...  ; nm bpod.bin.elf | tail
+00000010 a .callsz
+00000010 a .callsz
+00000010 a .callsz
+00000010 a .locsz
+00000010 a .locsz
+00000010 a .locsz
+40009a14 A Cache_Flush_rom
+40009ab8 A Cache_Read_Disable_rom
+40009a84 A Cache_Read_Enable_rom
+3ff44000 A GPIO
+...
+40001868 A tolower
+40001884 A toupper
+40001a1c A tzset
+40008fd0 A uartAttach
+400090cc A uart_div_modify
+40009028 A uart_tx_switch
+400590f4 A ungetc
+40056258 A utoa
+40058920 A wcrtomb
+4000181c A write
+```
+
+
+We can search memory for the start of the AES S-Box we found (starting with the string `c|w{`)
 
 You can hit `S` to search a pattern in memory. (Or go to Search -> Memory on the top bar)
 
